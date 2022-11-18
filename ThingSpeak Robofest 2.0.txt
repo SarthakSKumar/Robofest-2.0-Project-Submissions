@@ -1,0 +1,74 @@
+//Libraries
+#include <WiFi.h>
+#include <WebServer.h>
+#include "DHT.h"
+#include <ThingSpeak.h>
+
+//DHT11 Sensor Configuration
+#define DHTTYPE DHT11
+const INT DHTPin = 5;
+DHT dht(DHTPin, DHTTYPE);
+
+//WIFI Configuration
+const char* ssid = ""; //Add the AP SSID here
+const char* password = ""; //Add the AP Password here
+WiFiClient client;
+
+//ThingSpeak Configuration
+long myChannelNumber = ; //Add the Channel Number here 
+const char myWriteAPIKey[] = ""; //Add the Write API Key here
+
+//Ultrasonic Sensor Configuration
+const int pingPin = 7;  // Trigger Pin of Ultrasonic Sensor
+const int echoPin = 6;  // Echo Pin of Ultrasonic Sensor
+long duration, cm;
+
+void setup() {
+  Serial.begin(115200);
+  delay(100);
+
+  pinMode(DHTPin, INPUT);
+  dht.begin();
+
+  ThingSpeak.begin(client);
+
+  pinMode(pingPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+
+  Serial.println("Connecting to ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("WiFi connected..!");
+  Serial.print("Got IP: ");
+  Serial.println(WiFi.localIP());
+}
+
+void loop() {
+  digitalWrite(pingPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(pingPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(pingPin, LOW);
+  duration = pulseIn(echoPin, HIGH);
+  cm = microsecondsToCentimeters(duration);
+  Serial.println("Distance: " + (String)cm, " cm");
+  delay(4000);
+
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  Serial.println("Temperature: " + (String)t);
+  Serial.println("Humidity: " + (String)h);
+
+  if (t > 25)
+    ThingSpeak.writeField(myChannelNumber, 1, t, myWriteAPIKey); //Writes if Temperature is greater than 25C
+  if (h > 60)
+    ThingSpeak.writeField(myChannelNumber, 2, h, myWriteAPIKey); //Writes if Temperature is greater than 60%
+  if (cm < 20)
+    ThingSpeak.writeField(myChannelNumber, 3, cm, myWriteAPIKey); //Writes if Distance is greater than 20cm
+  delay(4000);
+}
